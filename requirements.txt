@@ -1,0 +1,11 @@
+slack_bolt
+python-dotenv
+certifi
+openai
+langgraph
+langgraph-sdk
+langsmith
+langchain-community
+langchain-core
+langchain-openai
+langgraph-cli
