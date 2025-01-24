@@ -104,33 +104,3 @@ def is_relevant_response_to_interrupt(interrupt: str, response: str):
         [system_message])
 
     return response.is_relevant
-
-
-def identify_action(user_messages: list[str]):
-    system_prompt = """
-        You are an intent classifier. Your task is to identify the intended action from the user messages. Based on the messages, classify the action into one of the following:
-            - SUMMARIZE: If the user is asking to summarize messages or conversations (including 'summarize this', 'get a summary', 'what was said', etc.).
-            - ACTION_ITEM: If the user is asking to list action items or tasks (including 'list action items', 'what are the tasks', 'what needs to be done', etc.).
-            - SCHEDULE: If the user is asking to schedule a meeting or event (including 'schedule a meeting', 'set up a meeting', 'create a calendar invite/event', etc.).
-            - NONE: If the query does not match any of the above.
-    """
-
-    system_message = SystemMessage(content=system_prompt)
-
-    OPENAI_API_KEY = get_environment_variable("OPENAI_API_KEY")
-
-    llm = ChatOpenAI(
-        api_key=OPENAI_API_KEY,
-        model="gpt-4o-mini",
-        temperature=0,
-    )
-
-    class FindAction(BaseModel):
-        action: Optional[str] = Field(
-            description="user action from the list of actions."
-        )
-
-    response = llm.with_structured_output(FindAction).invoke(
-        [system_message] + user_messages)
-
-    return response.action
