@@ -4,7 +4,7 @@ import certifi
 from slack_bolt import App
 from slack_sdk.errors import SlackApiError
 from src.bot.graphs.parent import get_graph as get_parent_graph
-from src.helpers import get_environment_variable, get_chat_history, get_user_threads, get_thread_messages, identify_action, is_relevant_response_to_interrupt
+from src.helpers import get_environment_variable, get_chat_history, get_user_threads, get_thread_messages, is_relevant_response_to_interrupt
 from src.constants.actions import Actions
 from langgraph.errors import NodeInterrupt
 
@@ -26,7 +26,6 @@ def handle_app_mention(message, say):
     text = message['text']
     channel_id = message['channel']
     config = {"configurable": {"thread_id": thread_id}}
-    chat_history = get_chat_history(channel_id)
     try:
         state = graph.get_state(config=config)
         messages = state.values.get("messages", [])
@@ -46,11 +45,10 @@ def handle_app_mention(message, say):
             )
             graph.invoke(None, config=config)
         else:
-            new_action = identify_action([text])
+            chat_history = get_chat_history(channel_id)
             context = {
                 "messages": [text],
-                "chat_history": chat_history,
-                "action": new_action,
+                "chat_history": chat_history
             }
             graph.invoke(context, config=config)
             current_state = graph.get_state(config=config)

@@ -4,6 +4,7 @@ from typing import Optional
 from src.bot.graphs.summarizer import summarize_messages
 from src.bot.graphs.action_items import get_action_items
 from src.bot.graphs.calender_event import create_calendar_event
+from src.bot.graphs.identify_action import identify_action
 from src.constants.actions import Actions
 
 
@@ -30,9 +31,11 @@ def invoke_sub_graph(state: ParentState):
 def get_graph():
     builder = StateGraph(ParentState)
     builder.add_node("get_action_items", get_action_items)
+    builder.add_node("identify_action", identify_action)
     builder.add_node("summarizer", summarize_messages)
     builder.add_node("create_calendar_event", create_calendar_event)
-    builder.add_conditional_edges(START, invoke_sub_graph)
+    builder.add_edge(START, "identify_action")
+    builder.add_conditional_edges("identify_action", invoke_sub_graph)
     builder.add_edge("summarizer", END)
     builder.add_edge("get_action_items", END)
     builder.add_edge("create_calendar_event", END)
