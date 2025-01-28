@@ -8,12 +8,7 @@ from typing import Optional
 from src.helpers import get_environment_variable
 
 
-class State(MessagesState):
-    action_items: str
-    chat_history: str
-
-
-def get_event_details(user_message: str):
+def get_event_details(user_messages: list[str]):
     system_prompt = """
         You are an expert in extracting calendar event details.
         Your task is to extract details required for creating a calendar event from the conversation.
@@ -48,19 +43,15 @@ def get_event_details(user_message: str):
             description="missing details for the calendar event."
         )
 
-    messages = [system_message] + [user_message]
+    messages = [system_message] + user_messages
     response = llm.with_structured_output(
         CalendarEventDetails).invoke(messages)
 
     return response
 
 
-def create_calendar_event(state: State):
-    user_message = state["messages"][0].content
-    print(f"User Message: {user_message}")
-    calendar_event_details = get_event_details(user_message)
-
-    print(f"Calendar Event Details: {calendar_event_details}")
+def create_calendar_event(state: MessagesState):
+    calendar_event_details = get_event_details(state["messages"])
 
     if len(calendar_event_details.missing_details) > 0:
         raise NodeInterrupt(

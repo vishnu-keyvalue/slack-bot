@@ -4,7 +4,7 @@ import certifi
 from slack_bolt import App
 from slack_sdk.errors import SlackApiError
 from src.bot.graphs.parent import get_graph as get_parent_graph
-from src.helpers import get_environment_variable, get_chat_history, get_user_threads, get_thread_messages
+from src.helpers import get_environment_variable, get_chat_history, get_user_threads, get_thread_messages, is_relevant_response_to_interrupt
 from src.constants.actions import Actions
 from langgraph.errors import NodeInterrupt
 
@@ -14,42 +14,64 @@ ssl.create_default_context(cafile=certifi.where())
 
 app = App(token=SLACK_BOT_TOKEN)
 
+graph = get_parent_graph()
+
+thread_id = 0
+
 
 @app.message(f"@{SLACK_BOT_ID}")
 def handle_app_mention(message, say):
+    global thread_id
     user_id = message['user']
     text = message['text']
     channel_id = message['channel']
-    config = {"configurable": {"thread_id": channel_id}}
-
-    graph = get_parent_graph()
-
+    config = {"configurable": {"thread_id": thread_id}}
     try:
-        context = {
-            "messages": [text],
-            "chat_history": get_chat_history(channel_id)
-        }
-        graph.invoke(context, config=config)
-        current_state = graph.get_state(config=config)
+        state = graph.get_state(config=config)
+        messages = state.values.get("messages", [])
+        interrupt_message = state.tasks[0].interrupts[0].value if state.next else None
 
-        if current_state.next and current_state.next[0] == "create_calendar_event":
-            if hasattr(current_state.tasks[0], 'interrupts'):
+        is_relevant_response = is_relevant_response_to_interrupt(
+            interrupt=interrupt_message,
+            response=text
+        ) if interrupt_message else False
+
+        if is_relevant_response:
+            graph.update_state(
+                config,
+                {
+                    "messages": [text] + messages
+                }
+            )
+            graph.invoke(None, config=config)
+        else:
+            chat_history = get_chat_history(channel_id)
+            context = {
+                "messages": [text],
+                "chat_history": chat_history
+            }
+            graph.invoke(context, config=config)
+            current_state = graph.get_state(config=config)
+            if current_state.next:
                 interrupt_value = current_state.tasks[0].interrupts[0].value
                 say(interrupt_value)
                 return
 
+        current_state = graph.get_state(config=config)
         action = current_state.values.get("action", Actions.NONE.value)
         action_response_map = {
             Actions.SUMMARIZE.value: f"Hi <@{user_id}>, here's the summary:\n\n{current_state.values.get('summary', '')}",
             Actions.ACTION_ITEM.value: f"Hi <@{user_id}>, here are the action items:\n\n{current_state.values.get('action_items', '')}",
-            Actions.SCHEDULE.value: "Calendar event created successfully!2",
+            Actions.SCHEDULE.value: "Calendar event created successfully!",
         }
-
         action_response = action_response_map.get(
             action,
             f"""Hi <@{user_id}>, I am an assistant for summarizing Slack conversations and to list actionable items.\n I do not have the capability to understand your query. Please try again with a valid query."""
         )
+
         say(action_response)
+
+        thread_id = thread_id + 1
 
     except NodeInterrupt as e:
         say(str(e))
