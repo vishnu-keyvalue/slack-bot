@@ -4,7 +4,7 @@ This project is a Slack AI Bot built using Python. The bot interacts with users 
 
 ## Features
 
-- Summarizes slack messages and list out action itmes
+- Summarizes slack messages and list out action items
 - Integrates seamlessly with Slack
 
 ## Requirements
